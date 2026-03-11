@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Smart Building Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+
+body{
+margin:0;
+font-family:Arial, Helvetica, sans-serif;
+background:#f4f6f9;
+color:#333;
+text-align:center;
+}
+
+h1{
+padding:20px;
+color:#2c3e50;
+}
+
+.dashboard{
+display:grid;
+grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
+gap:20px;
+width:90%;
+margin:auto;
+}
+
+/* Cards */
+
+.card{
+background:white;
+border-radius:10px;
+padding:25px;
+box-shadow:0 2px 10px rgba(0,0,0,0.1);
+transition:0.2s;
+}
+
+.card:hover{
+transform:translateY(-3px);
+}
+
+/* Values */
+
+.value{
+font-size:22px;
+font-weight:bold;
+margin-top:10px;
+color:#2c3e50;
+}
+
+/* Thermometer */
+
+.thermometer{
+width:30px;
+height:150px;
+background:#e0e0e0;
+border-radius:20px;
+margin:auto;
+position:relative;
+overflow:hidden;
+}
+
+.temp-fill{
+position:absolute;
+bottom:0;
+width:100%;
+background:#ff6b6b;
+transition:height 0.5s ease;
+}
+
+/* Bars */
+
+.bar-container{
+background:#e0e0e0;
+height:20px;
+border-radius:10px;
+overflow:hidden;
+margin-top:10px;
+}
+
+.bar-fill{
+height:100%;
+transition:width 0.5s;
+}
+
+/* Prediction */
+
+.prediction{
+margin:20px auto;
+padding:15px;
+width:50%;
+border-radius:8px;
+background:#eaf6ff;
+color:#2c3e50;
+font-size:18px;
+}
+
+/* Form */
+
+form{
+margin-bottom:25px;
+}
+
+input{
+padding:10px;
+margin:5px;
+width:120px;
+border-radius:6px;
+border:1px solid #ccc;
+}
+
+button{
+padding:10px 20px;
+border:none;
+border-radius:6px;
+background:#3498db;
+color:white;
+cursor:pointer;
+}
+
+button:hover{
+background:#2980b9;
+}
+
+</style>
+</head>
+
+<body>
+
+<h1>Smart Building Comfort Dashboard</h1>
+
+<form method="POST">
+
+<input type="number" step="0.1" name="temperature" placeholder="Temp °C" required>
+<input type="number" step="0.1" name="humidity" placeholder="Humidity %" required>
+<input type="number" name="light" placeholder="Light Lux" required>
+<input type="number" name="air" placeholder="Air AQI" required>
+<input type="number" name="co2" placeholder="CO2 ppm" required>
+
+<button type="submit">Analyze</button>
+
+</form>
+
+{% if prediction %}
+<div class="prediction">
+AI Comfort Status: <b>{{ prediction }}</b>
+</div>
+{% endif %}
+
+{% if data %}
+
+<div class="dashboard">
+
+<div class="card">
+<h3>Temperature</h3>
+
+<div class="thermometer">
+<div class="temp-fill"
+style="height: {{ (data.temperature/50*100) }}%;">
+</div>
+</div>
+
+<div class="value">{{ data.temperature }} °C</div>
+</div>
+
+
+<div class="card">
+<h3>Humidity</h3>
+
+<canvas id="humidityChart"></canvas>
+
+<div class="value">{{ data.humidity }} %</div>
+</div>
+
+
+<div class="card">
+<h3>Light Intensity</h3>
+
+<div class="bar-container">
+<div class="bar-fill"
+style="width: {{ (data.light/1000*100) }}%; background:#f1c40f;">
+</div>
+</div>
+
+<div class="value">{{ data.light }} Lux</div>
+</div>
+
+
+<div class="card">
+<h3>Air Quality</h3>
+
+<canvas id="airChart"></canvas>
+
+<div class="value">{{ data.air }} AQI</div>
+</div>
+
+
+<div class="card">
+<h3>CO₂ Level</h3>
+
+<div class="bar-container">
+<div class="bar-fill"
+style="width: {{ (data.co2/2000*100) }}%; background:#2ecc71;">
+</div>
+</div>
+
+<div class="value">{{ data.co2 }} ppm</div>
+</div>
+
+</div>
+
+
+<script>
+
+const humidityChart=new Chart(
+document.getElementById("humidityChart"),
+{
+type:"doughnut",
+data:{
+datasets:[{
+data:[{{data.humidity}},100-{{data.humidity}}],
+backgroundColor:["#3498db","#ecf0f1"],
+borderWidth:0
+}]
+},
+options:{
+cutout:"70%",
+plugins:{legend:{display:false}}
+}
+});
+
+
+const airChart=new Chart(
+document.getElementById("airChart"),
+{
+type:"doughnut",
+data:{
+datasets:[{
+data:[{{data.air}},300-{{data.air}}],
+backgroundColor:["#f39c12","#ecf0f1"],
+borderWidth:0
+}]
+},
+options:{
+circumference:180,
+rotation:270,
+cutout:"75%",
+plugins:{legend:{display:false}}
+}
+});
+
+</script>
+
+{% endif %}
+
+</body>
+</html>
