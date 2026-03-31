@@ -165,6 +165,16 @@
             font-size: 12px;
             font-weight: 700;
         }
+        .ai-content h4 {
+    font-size: 14px;
+    color: #a5b4fc;
+    font-weight: 600;
+}
+
+.ai-content li {
+    margin-bottom: 3px;
+    line-height: 1.4;
+}
 
         .pulse-dot {
             width: 8px; height: 8px; 
@@ -296,13 +306,35 @@
 
                 <div class="ai-insight-card">
                     <h3><i class="fas fa-wand-magic-sparkles"></i> AI Deep Insight</h3>
-                    <div class="ai-content">
-                        {% if ai_response %}
-                            {{ ai_response }}
-                        {% else %}
-                            Please submit environmental data from the main dashboard to generate custom architectural and HVAC optimization insights.
-                        {% endif %}
-                    </div>
+<div class="ai-content" id="aiInsight">
+    {% if ai_response %}
+<script>
+    const aiData = {{ ai_response | tojson | safe }};
+
+    let html = `
+        <div style="line-height:1.3;">
+
+            <h4 style="margin:0;">Reasons</h4>
+            <ul style="padding-left:14px; margin:0;">
+                ${aiData.reasons.map(r => `<li style="margin:0;">${r}</li>`).join("")}
+            </ul>
+
+            <h4 style="margin:0;">Suggestions</h4>
+            <ul style="padding-left:14px; margin:0;">
+                ${aiData.suggestions.map(s => `<li style="margin:0;">${s}</li>`).join("")}
+            </ul>
+
+        </div>
+    `;
+
+    document.addEventListener("DOMContentLoaded", () => {
+        document.getElementById("aiInsight").innerHTML = html;
+    });
+</script>
+    {% else %}
+        Please submit environmental data to generate AI insights.
+    {% endif %}
+</div>
                 </div>
             </div>
         </div>
@@ -337,57 +369,149 @@ async function fetchLiveData() {
 // 🔥 AUTO REFRESH WITHOUT PAGE RELOAD
 setInterval(fetchLiveData, 2000);
 </script>
-    <script>
-        // ROUTING LOGIC
-        function showPage(pageId) {
-            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+<script>
+let radarChart;
 
-            document.getElementById(pageId).classList.add('active');
-            document.querySelector(`button[onclick="showPage('${pageId}')"]`).classList.add('active');
-            document.getElementById('page-title').innerText = pageId === 'home' ? 'Dashboard' : 'AI Environment Lab';
+// ----------------------
+// 🔹 CREATE RADAR ONLY
+// ----------------------
+function initCharts(initialData) {
+
+    const ctx = document.getElementById('radarChart').getContext('2d');
+
+    radarChart = new Chart(ctx, {
+        type: 'radar',
+        data: {
+            labels: ['Temp', 'Humidity', 'Light', 'AQI', 'CO2'],
+            datasets: [{
+                data: initialData,
+                backgroundColor: 'rgba(99,102,241,0.2)',
+                borderColor: '#6366f1',
+                borderWidth: 3,
+                pointBackgroundColor: '#6366f1'
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                r: {
+                    suggestedMin: 0,
+                    suggestedMax: 100,
+                    grid: { color: 'rgba(255,255,255,0.05)' },
+                    angleLines: { color: 'rgba(255,255,255,0.05)' }
+                }
+            },
+            plugins: { legend: { display: false } }
+        }
+    });
+}
+
+// ----------------------
+// 🔹 UPDATE RADAR
+// ----------------------
+function updateCharts(d) {
+
+    const scaled = [
+        d.temperature,
+        d.humidity,
+        d.light / 8,
+        d.air * 0.66,
+        d.co2 / 14
+    ];
+
+    radarChart.data.datasets[0].data = scaled;
+    radarChart.update();
+}
+
+// ----------------------
+// 🔹 UPDATE AI INSIGHT LIVE
+// ----------------------
+function updateAI(ai) {
+
+    const html = `
+        <div style="line-height:1.3;">
+            <h4 style="margin:0;">Reasons</h4>
+            <ul style="padding-left:14px; margin:0;">
+                ${ai.reasons.map(r => `<li style="margin:0;">${r}</li>`).join("")}
+            </ul>
+
+            <h4 style="margin:0;">Suggestions</h4>
+            <ul style="padding-left:14px; margin:0;">
+                ${ai.suggestions.map(s => `<li style="margin:0;">${s}</li>`).join("")}
+            </ul>
+        </div>
+    `;
+
+    document.getElementById("aiInsight").innerHTML = html;
+}
+
+// ----------------------
+// 🔹 FETCH LIVE DATA + AI
+// ----------------------
+async function fetchLiveData() {
+    try {
+        const res = await fetch('/api/data');
+        const result = await res.json();
+
+        const d = result.data;
+
+        // UPDATE METRICS
+        const vals = document.querySelectorAll('.val');
+        vals[0].innerHTML = d.temperature + "<span class='unit'>°C</span>";
+        vals[1].innerHTML = d.humidity + "<span class='unit'>%</span>";
+        vals[2].innerHTML = d.light + "<span class='unit'>lx</span>";
+        vals[3].innerHTML = d.air + "<span class='unit'>AQI</span>";
+        vals[4].innerHTML = d.co2 + "<span class='unit'>ppm</span>";
+
+        // UPDATE PREDICTION
+        if (result.prediction && document.querySelector(".hero-info h2")) {
+            document.querySelector(".hero-info h2").innerText = result.prediction;
         }
 
-        // ACCURATE RADAR MAPPING
-        {% if data %}
-        const ctx = document.getElementById('radarChart').getContext('2d');
-        new Chart(ctx, {
-            type: 'radar',
-            data: {
-                labels: ['Temp', 'Humidity', 'Light', 'AQI', 'CO2'],
-                datasets: [{
-                    label: 'Room Environment',
-                    data: [
-                        {{ data['temperature'] }}, 
-                        {{ data['humidity'] }}, 
-                        {{ (data['light'] / 8) }}, // Scaled for 0-100 radar
-                        {{ (data['air'] * 0.66) }}, // Scaled for 0-100 radar
-                        {{ (data['co2'] / 14) }}    // Scaled for 0-100 radar
-                    ],
-                    backgroundColor: 'rgba(99, 102, 241, 0.2)',
-                    borderColor: '#6366f1',
-                    pointBackgroundColor: '#6366f1',
-                    pointBorderColor: '#fff',
-                    borderWidth: 3,
-                    pointRadius: 4
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    r: {
-                        grid: { color: 'rgba(255, 255, 255, 0.05)' },
-                        angleLines: { color: 'rgba(255, 255, 255, 0.05)' },
-                        suggestedMin: 0,
-                        suggestedMax: 100,
-                        ticks: { display: false }
-                    }
-                },
-                plugins: { legend: { display: false } }
-            }
-        });
-        {% endif %}
-    </script>
+        // UPDATE GRAPH
+        updateCharts(d);
+
+        // 🔥 UPDATE AI LIVE (IMPORTANT)
+        if (result.ai_response) {
+            updateAI(result.ai_response);
+        }
+
+    } catch (err) {
+        console.log("Live update error:", err);
+    }
+}
+
+// ----------------------
+// 🔹 INIT
+// ----------------------
+document.addEventListener("DOMContentLoaded", () => {
+
+    const initialData = [
+        {{ data['temperature'] }},
+        {{ data['humidity'] }},
+        {{ data['light'] / 8 }},
+        {{ data['air'] * 0.66 }},
+        {{ data['co2'] / 14 }}
+    ];
+
+    initCharts(initialData);
+});
+
+// AUTO REFRESH
+setInterval(fetchLiveData, 2000);
+
+
+// ----------------------
+// 🔹 ROUTING (UNCHANGED)
+// ----------------------
+function showPage(pageId) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+
+    document.getElementById(pageId).classList.add('active');
+    document.querySelector(`button[onclick="showPage('${pageId}')"]`).classList.add('active');
+    document.getElementById('page-title').innerText = pageId === 'home' ? 'Dashboard' : 'AI Environment Lab';
+}
+</script>
 </body>
 </html>

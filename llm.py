@@ -1,17 +1,51 @@
-from groq import Groq
 import os
-from dotenv import load_dotenv
 import json
 
-load_dotenv()
+# ---------------------------
+# CI MODE DETECTION
+# ---------------------------
+CI_MODE = os.getenv("CI") == "true"
 
-client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+# ---------------------------
+# SAFE IMPORTS
+# ---------------------------
+if not CI_MODE:
+    try:
+        from groq import Groq
+        from dotenv import load_dotenv
+
+        load_dotenv()
+        client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+    except:
+        client = None
+else:
+    client = None
 
 MODEL = "llama-3.1-8b-instant"
 
 
+# ---------------------------
+# MAIN FUNCTION
+# ---------------------------
 def generate_explanation(data, ml_prediction):
 
+    # ---------------------------
+    # CI / FALLBACK MODE
+    # ---------------------------
+    if client is None:
+        return {
+            "prediction": ml_prediction,
+            "reasons": [
+                "AI disabled (CI mode or missing API key)"
+            ],
+            "suggestions": [
+                "Run locally with GROQ_API_KEY for AI insights"
+            ]
+        }
+
+    # ---------------------------
+    # PROMPT
+    # ---------------------------
     prompt = f"""
 You are an INDOOR ROOM COMFORT ANALYSIS SYSTEM.
 
@@ -47,6 +81,9 @@ OUTPUT FORMAT (STRICT JSON ONLY):
 }}
 """
 
+    # ---------------------------
+    # API CALL
+    # ---------------------------
     try:
         response = client.chat.completions.create(
             messages=[
@@ -54,20 +91,18 @@ OUTPUT FORMAT (STRICT JSON ONLY):
                 {"role": "user", "content": prompt}
             ],
             model=MODEL,
-            temperature=0.1  # 🔥 lower = more reliable
+            temperature=0.1
         )
 
         content = response.choices[0].message.content.strip()
 
         # ---------------------------
-        # SAFE PARSE (VERY IMPORTANT)
+        # SAFE PARSE
         # ---------------------------
         try:
             parsed = json.loads(content)
             return parsed
-
         except:
-            # fallback if model breaks format
             return {
                 "prediction": ml_prediction,
                 "reasons": ["Model output parsing failed"],
@@ -82,5 +117,8 @@ OUTPUT FORMAT (STRICT JSON ONLY):
         }
 
 
+# ---------------------------
+# WRAPPER FUNCTION
+# ---------------------------
 def generate_ai_insight(data, ml_prediction):
     return generate_explanation(data, ml_prediction)
