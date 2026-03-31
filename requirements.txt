@@ -6,3 +6,4 @@ pytest
 pyserial
 groq
 python-dotenv
+xgboost
