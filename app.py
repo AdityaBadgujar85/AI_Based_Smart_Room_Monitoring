@@ -217,8 +217,19 @@ def api_data():
 
 
 # ---------------------------
-# 🔹 RUN APP
+# 🔹 RUN APP (FIXED FOR DOCKER)
 # ---------------------------
 if __name__ == "__main__":
-    init_serial()
-    app.run(debug=True, use_reloader=False)
+
+    import os
+
+    # Detect Docker / CI mode
+    CI_MODE = os.getenv("CI") == "true"
+
+    if not CI_MODE:
+        try:
+            init_serial()
+        except:
+            print("⚠️ Running without serial (Docker/No hardware)")
+
+    app.run(host="0.0.0.0", port=5000, debug=True, use_reloader=False)
